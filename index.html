@@ -1,0 +1,374 @@
+
+<style>
+:root{
+  --bg:#0a0a0f;--surf:#13131f;--surf2:#1a1a2e;
+  --bord:rgba(139,92,246,.22);--bord2:rgba(139,92,246,.55);
+  --pur-dim:rgba(124,58,237,.15);--pur-t:#a78bfa;--pur-b:#c4b5fd;
+  --red:#dc2626;--red-dim:rgba(220,38,38,.15);--red-t:#f87171;
+  --amb:#d97706;--amb-dim:rgba(217,119,6,.15);--amb-t:#fbbf24;
+  --grn-dim:rgba(22,163,74,.12);--grn-t:#4ade80;
+  --blu-dim:rgba(29,78,216,.15);--blu-t:#60a5fa;
+  --tx:#e2e2f0;--tx2:#8888b8;--muted:#555;
+  --mono:'Courier New',monospace;
+  --fs:17px;--fss:15px;--fsxs:13px;
+}
+*{box-sizing:border-box;font-family:var(--mono);}
+.w{background:var(--bg);border:.5px solid var(--bord);border-radius:12px;padding:2rem;}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;border-bottom:.5px solid var(--bord);padding-bottom:1.25rem;gap:12px;flex-wrap:wrap;}
+.ttl{font-size:var(--fss);color:var(--pur-t);letter-spacing:2px;text-transform:uppercase;margin:0 0 4px;}
+.sub{font-size:var(--fsxs);color:var(--tx2);margin:0;}
+.hdr-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.pbtn{background:transparent;border:.5px solid var(--bord2);color:var(--pur-b);font-size:var(--fss);padding:9px 18px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+.pbtn:hover{background:var(--pur-dim);}
+.sync-ok{color:var(--grn-t);font-size:var(--fsxs);}
+.sync-err{color:var(--red-t);font-size:var(--fsxs);}
+.sync-ing{color:var(--amb-t);font-size:var(--fsxs);}
+.cfg-panel{background:var(--surf);border:.5px solid var(--bord);border-radius:8px;padding:1.1rem 1.2rem;margin-bottom:1.2rem;}
+.cfg-panel p{font-size:var(--fsxs);color:var(--tx2);margin:0 0 8px;}
+.cfg-row{display:flex;gap:8px;align-items:center;}
+.cfg-input{flex:1;background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fsxs);padding:8px 10px;border-radius:5px;}
+.cfg-input:focus{outline:none;border-color:rgba(139,92,246,.6);}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.2rem;}
+.filt{background:transparent;border:.5px solid #333;color:var(--tx2);font-size:var(--fsxs);padding:6px 13px;border-radius:5px;cursor:pointer;}
+.filt.on{border-color:rgba(139,92,246,.6);color:var(--pur-t);background:var(--pur-dim);}
+.form-box,.edit-box{background:var(--surf);border:.5px solid var(--bord);border-radius:10px;padding:1.5rem;margin-bottom:1.2rem;}
+.edit-box{background:#0d0d18;}
+.lbl{font-size:var(--fsxs);color:var(--tx2);display:block;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase;}
+input[type=text],input[type=date],select,textarea{background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(139,92,246,.6);}
+input.err{border-color:var(--red)!important;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.card{background:var(--surf);border:.5px solid var(--bord);border-radius:10px;padding:1.5rem;margin-bottom:12px;}
+.card.editing{border-color:rgba(139,92,246,.6);}
+.c-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.ent{font-size:20px;font-weight:500;color:var(--tx);margin:0 0 4px;}
+.meta{font-size:var(--fss);color:var(--tx2);margin:0 0 3px;}
+.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;}
+.badge{font-size:var(--fsxs);padding:4px 10px;border-radius:4px;border:.5px solid transparent;white-space:nowrap;}
+.bw{height:4px;background:#1e1e30;border-radius:2px;overflow:hidden;margin-bottom:14px;}
+.bf{height:100%;border-radius:2px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.stat{background:var(--surf2);border:.5px solid #1e1e30;border-radius:6px;padding:11px 12px;}
+.slbl{font-size:var(--fsxs);color:var(--tx2);margin:0 0 4px;text-transform:uppercase;letter-spacing:.4px;}
+.sval{font-size:var(--fs);font-weight:500;margin:0;color:var(--tx);}
+.frow{display:flex;align-items:center;gap:8px;border-top:.5px solid #1e1e30;padding-top:12px;flex-wrap:wrap;}
+.frow>span{font-size:var(--fsxs);color:var(--tx2);}
+.sbtn{background:transparent;border:.5px solid #2a2a4a;color:var(--tx2);font-size:var(--fsxs);padding:6px 12px;border-radius:5px;cursor:pointer;}
+.sbtn:hover,.sbtn.on{border-color:var(--bord2);color:var(--pur-t);background:var(--pur-dim);}
+.bloque{border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:var(--fss);}
+.b-tr{background:var(--blu-dim);border:.5px solid rgba(29,78,216,.4);color:var(--blu-t);}
+.b-dc{background:var(--amb-dim);border:.5px solid rgba(217,119,6,.4);color:var(--amb-t);}
+.b-tut{background:var(--pur-dim);border:.5px solid var(--bord2);color:var(--pur-t);}
+.b-imp{background:var(--grn-dim);border:.5px solid rgba(22,163,74,.4);color:var(--grn-t);}
+.blq-t{font-size:var(--fsxs);font-weight:500;margin:0 0 7px;letter-spacing:1px;text-transform:uppercase;}
+.lnk{cursor:pointer;text-decoration:underline;margin-left:10px;font-size:var(--fsxs);opacity:.75;}
+.nota-a{background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fss);width:100%;min-height:70px;resize:vertical;border-radius:6px;padding:10px 12px;margin-top:9px;}
+.empty{text-align:center;padding:3rem;color:var(--muted);font-size:var(--fss);}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle;}
+</style>
+
+<div class="w">
+  <div class="hdr">
+    <div>
+      <p class="ttl">// sistema de seguimiento</p>
+      <p class="sub">derechos de petición · tutelas · art. 14, 17, 21 CPACA · Dec. 2591/91</p>
+    </div>
+    <div class="hdr-btns">
+      <span id="sync-status" style="display:none;font-size:var(--fsxs);"></span>
+      <button class="sbtn" onclick="toggleCfg()" id="btn-cfg" title="Configuración webhook">⚙</button>
+      <button class="sbtn" onclick="sincronizarManual()" title="Sincronizar ahora">⇅</button>
+      <button class="pbtn" onclick="showF()">+ radicado</button>
+    </div>
+  </div>
+
+  <!-- Panel config — oculto si ya hay URL -->
+  <div id="cfg-panel" class="cfg-panel" style="display:none;">
+    <p>🔗 <strong style="color:var(--pur-t);">Webhook Google Apps Script</strong> — URL de tu implementación para sincronización automática.</p>
+    <div class="cfg-row">
+      <input class="cfg-input" type="text" id="webhook-url" placeholder="https://script.google.com/macros/s/XXXXXXX/exec" />
+      <button class="sbtn" onclick="guardarWebhook()">guardar</button>
+      <button class="sbtn" onclick="testWebhook()">probar</button>
+    </div>
+    <p id="webhook-status" style="margin:6px 0 0;font-size:var(--fsxs);color:var(--tx2);"></p>
+  </div>
+
+  <div id="dp-form" style="display:none;" class="form-box">
+    <p style="font-size:var(--fss);color:var(--pur-t);margin:0 0 14px;">// nuevo derecho de petición</p>
+    <div class="g2" style="margin-bottom:12px;">
+      <div><label class="lbl">entidad radicada *</label><input type="text" id="i-ent" placeholder="Ej: Ministerio del Trabajo" /></div>
+      <div><label class="lbl">no. radicado</label><input type="text" id="i-rad" placeholder="Ej: 2025-12345" /></div>
+    </div>
+    <div class="g2" style="margin-bottom:12px;">
+      <div><label class="lbl">fecha de radicación *</label><input type="date" id="i-fec" /></div>
+      <div><label class="lbl">asunto</label><input type="text" id="i-asu" placeholder="Ej: Lista de elegibles" /></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="sbtn" onclick="hideF()">cancelar</button>
+      <button class="pbtn" onclick="addP()">guardar</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filt on" id="f-todos" onclick="setF('todos')">todos</button>
+    <button class="filt" id="f-sin_respuesta" onclick="setF('sin_respuesta')">sin respuesta</button>
+    <button class="filt" id="f-trasladada" onclick="setF('trasladada')">trasladada</button>
+    <button class="filt" id="f-requiere_docs" onclick="setF('requiere_docs')">requiere docs</button>
+    <button class="filt" id="f-respondida" onclick="setF('respondida')">respondida</button>
+    <button class="filt" id="f-tutela_interpuesta" onclick="setF('tutela_interpuesta')">tutela</button>
+    <button class="filt" id="f-tutela_resuelta" onclick="setF('tutela_resuelta')">tutela resuelta</button>
+  </div>
+
+  <div id="dp-list"></div>
+  <div id="dp-empty" class="empty" style="display:none;">// sin registros en este filtro</div>
+</div>
+
+<script>
+const DH=15;
+const FEST=["2025-01-01","2025-01-06","2025-03-24","2025-04-17","2025-04-18","2025-05-01","2025-06-02","2025-06-23","2025-06-30","2025-07-20","2025-08-07","2025-08-18","2025-10-13","2025-11-03","2025-11-17","2025-12-08","2025-12-25","2026-01-01","2026-01-12","2026-03-23","2026-04-02","2026-04-03","2026-05-01","2026-05-18","2026-06-08","2026-06-15","2026-07-20","2026-08-07","2026-08-17","2026-10-12","2026-11-02","2026-11-16","2026-12-08","2026-12-25"];
+const EST={
+  sin_respuesta:{label:'sin respuesta',bg:'rgba(80,80,100,.2)',bc:'#3a3a5a',tc:'#7878a8'},
+  trasladada:{label:'trasladada art.21',bg:'var(--blu-dim)',bc:'rgba(29,78,216,.5)',tc:'var(--blu-t)'},
+  requiere_docs:{label:'requiere documentos',bg:'var(--amb-dim)',bc:'rgba(217,119,6,.5)',tc:'var(--amb-t)'},
+  respondida:{label:'respondida',bg:'var(--grn-dim)',bc:'rgba(22,163,74,.4)',tc:'var(--grn-t)'},
+  tutela_interpuesta:{label:'tutela interpuesta',bg:'var(--pur-dim)',bc:'var(--bord2)',tc:'var(--pur-t)'},
+  tutela_resuelta:{label:'tutela resuelta',bg:'rgba(147,51,234,.15)',bc:'rgba(147,51,234,.5)',tc:'#c084fc'},
+};
+let filtro='todos',editId=null;
+
+function esH(f){const d=f.getDay();if(d===0||d===6)return false;return!FEST.includes(f.toISOString().split('T')[0]);}
+function sumDH(s,n){const d=new Date(s+'T00:00:00');let c=0;while(c<n){d.setDate(d.getDate()+1);if(esH(d))c++;}return d;}
+function dhT(s){const i=new Date(s+'T00:00:00');const h=new Date();h.setHours(0,0,0,0);let c=0;const x=new Date(i);x.setDate(x.getDate()+1);while(x<=h){if(esH(x))c++;x.setDate(x.getDate()+1);}return c;}
+function fmtF(d){return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});}
+function fmtS(s){return fmtF(new Date(s+'T00:00:00'));}
+function dcT(s){const a=new Date(s+'T00:00:00');const b=new Date();b.setHours(0,0,0,0);return Math.max(0,Math.round((b-a)/86400000));}
+function addD(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d;}
+function gV(id){return(document.getElementById(id)||{}).value||'';}
+function mErr(id,bad){const el=document.getElementById(id);if(el)el.classList[bad?'add':'remove']('err');}
+
+const LS_KEY='dp_v7';
+const WH_KEY='dp_webhook_url';
+function getP(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch(e){return[];}}
+function saveP(a){localStorage.setItem(LS_KEY,JSON.stringify(a));sincronizarAuto();}
+function getWH(){return localStorage.getItem(WH_KEY)||'';}
+function setWH(u){localStorage.setItem(WH_KEY,u);}
+
+// ── CONFIG PANEL ───────────────────────────────────────────
+function initCfg(){
+  const url=getWH();
+  const panel=document.getElementById('cfg-panel');
+  const inp=document.getElementById('webhook-url');
+  if(url){
+    // ya configurado: ocultar panel, mostrar punto verde en botón
+    panel.style.display='none';
+    inp.value=url;
+    actualizarBtnCfg(true);
+  } else {
+    // sin configurar: mostrar panel
+    panel.style.display='block';
+    actualizarBtnCfg(false);
+  }
+}
+
+function actualizarBtnCfg(conectado){
+  const btn=document.getElementById('btn-cfg');
+  if(!btn)return;
+  btn.innerHTML=conectado
+    ?'<span class="dot" style="background:var(--grn-t);"></span>⚙'
+    :'<span class="dot" style="background:var(--red-t);"></span>⚙';
+  btn.title=conectado?'Webhook conectado — clic para reconfigurar':'Sin webhook — clic para configurar';
+}
+
+function toggleCfg(){
+  const panel=document.getElementById('cfg-panel');
+  panel.style.display=panel.style.display==='none'?'block':'none';
+}
+
+function guardarWebhook(){
+  const url=document.getElementById('webhook-url').value.trim();
+  if(!url){setWHStatus('Pega primero la URL','err');return;}
+  setWH(url);
+  setWHStatus('Guardando...','ing');
+  testWebhook();
+}
+
+async function testWebhook(){
+  const url=getWH();
+  if(!url){setWHStatus('No hay URL configurada','err');return;}
+  try{
+    await fetch(url,{method:'GET',mode:'no-cors'});
+    setWHStatus('Conectado ✓ — el panel se cerrará en 2s','ok');
+    actualizarBtnCfg(true);
+    setTimeout(()=>{document.getElementById('cfg-panel').style.display='none';},2000);
+  }catch(e){
+    setWHStatus('Error — revisa la URL','err');
+    actualizarBtnCfg(false);
+  }
+}
+
+function setWHStatus(msg,tipo){
+  const el=document.getElementById('webhook-status');
+  if(el){el.textContent=msg;el.style.color=tipo==='ok'?'var(--grn-t)':tipo==='err'?'var(--red-t)':'var(--amb-t)';}
+}
+
+// ── SYNC STATUS (header) ───────────────────────────────────
+function setSyncStatus(msg,tipo){
+  const el=document.getElementById('sync-status');
+  if(!el)return;
+  el.style.display='inline';
+  el.className=tipo==='ok'?'sync-ok':tipo==='err'?'sync-err':'sync-ing';
+  el.textContent=msg;
+  if(tipo==='ok')setTimeout(()=>{el.style.display='none';},4000);
+}
+
+async function sincronizarAuto(){
+  const url=getWH();if(!url)return;
+  try{
+    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({peticiones:getP()})});
+    setSyncStatus('⇅ sync '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),'ok');
+  }catch(e){setSyncStatus('sin conexión','err');}
+}
+
+async function sincronizarManual(){
+  const url=getWH();
+  if(!url){toggleCfg();return;}
+  setSyncStatus('sincronizando...','ing');
+  await sincronizarAuto();
+}
+
+// ── CRUD ───────────────────────────────────────────────────
+function showF(){document.getElementById('dp-form').style.display='block';document.getElementById('i-fec').valueAsDate=new Date();}
+function hideF(){document.getElementById('dp-form').style.display='none';['i-ent','i-rad','i-asu','i-fec'].forEach(i=>{const el=document.getElementById(i);if(el){el.value='';el.classList.remove('err');}});}
+function addP(){
+  const e=document.getElementById('i-ent'),f=document.getElementById('i-fec');
+  let ok=true;[['i-ent',!e.value.trim()],['i-fec',!f.value]].forEach(([id,bad])=>{mErr(id,bad);if(bad)ok=false;});
+  if(!ok)return;
+  const ps=getP();
+  ps.push({id:Date.now(),entidad:e.value.trim(),radicado:gV('i-rad'),asunto:gV('i-asu'),fecha:f.value,estado:'sin_respuesta',traslado:null,docs:null,tutela:null,notas:''});
+  saveP(ps);hideF();render();
+}
+function del(id){if(!confirm('¿Eliminar este radicado?'))return;saveP(getP().filter(p=>p.id!==id));if(editId===id)editId=null;render();}
+function togEdit(id){editId=editId===id?null:id;render();}
+function savEdit(id){
+  const ent=gV('e-ent-'+id),fec=gV('e-fec-'+id);let ok=true;
+  [['e-ent-'+id,!ent],['e-fec-'+id,!fec]].forEach(([i,bad])=>{mErr(i,bad);if(bad)ok=false;});
+  if(!ok)return;
+  saveP(getP().map(p=>p.id===id?{...p,entidad:ent,radicado:gV('e-rad-'+id),asunto:gV('e-asu-'+id),fecha:fec}:p));
+  editId=null;render();
+}
+function setE(id,nv){
+  saveP(getP().map(p=>{if(p.id!==id)return p;const u={...p,estado:nv};if(nv!=='trasladada')u.traslado=null;if(nv!=='requiere_docs')u.docs=null;if(nv!=='tutela_interpuesta'&&nv!=='tutela_resuelta')u.tutela=null;return u;}));render();
+}
+function savTr(id){const ft=gV('ft-'+id);mErr('ft-'+id,!ft);if(!ft)return;saveP(getP().map(p=>p.id===id?{...p,traslado:{fechaRecepcion:ft,entidad:gV('et-'+id)}}:p));render();}
+function clrTr(id){saveP(getP().map(p=>p.id===id?{...p,traslado:null}:p));render();}
+function savDc(id){const fr=gV('dr-'+id);mErr('dr-'+id,!fr);if(!fr)return;saveP(getP().map(p=>p.id===id?{...p,docs:{req:fr,env:gV('de-'+id)||null}}:p));render();}
+function clrDc(id){saveP(getP().map(p=>p.id===id?{...p,docs:null}:p));render();}
+function savTut(id){const fi=gV('ti-'+id);mErr('ti-'+id,!fi);if(!fi)return;saveP(getP().map(p=>p.id===id?{...p,tutela:{...((p.tutela)||{}),fechaInterposicion:fi,juzgado:gV('tj-'+id),radicado:gV('tr-'+id)}}:p));render();}
+function clrTut(id){saveP(getP().map(p=>p.id===id?{...p,tutela:null}:p));render();}
+function savFallo(id){
+  const ff=gV('tf-'+id);mErr('tf-'+id,!ff);if(!ff)return;const imp=gV('ti2-'+id);
+  saveP(getP().map(p=>p.id===id?{...p,tutela:{...((p.tutela)||{}),fechaFallo:ff,resultado:gV('tres-'+id),impugna:imp==='si',fechaImpugnacion:imp==='si'?gV('timp-'+id)||null:null}}:p));render();
+}
+function clrFallo(id){saveP(getP().map(p=>p.id===id?{...p,tutela:{...((p.tutela)||{}),fechaFallo:null,resultado:null,impugna:false,fechaImpugnacion:null}}:p));render();}
+function togImp(id){const el=document.getElementById('imp-f-'+id);if(el)el.style.display=gV('ti2-'+id)==='si'?'block':'none';}
+function savNota(id){saveP(getP().map(p=>p.id===id?{...p,notas:gV('nota-'+id)}:p));}
+function togB(id){const el=document.getElementById('nb-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+function setF(f){filtro=f;document.querySelectorAll('.filt').forEach(b=>b.classList.remove('on'));document.getElementById('f-'+f).classList.add('on');render();}
+
+function fbP(p){
+  if(p.estado==='trasladada'&&p.traslado)return{fecha:p.traslado.fechaRecepcion,label:'recepción entidad competente'};
+  if(p.estado==='requiere_docs'&&p.docs&&p.docs.env)return{fecha:p.docs.env,label:'envío de documentos'};
+  return{fecha:p.fecha,label:'radicación original'};
+}
+function calcPl(fb,lbl){
+  const tr=dhT(fb);const venc=tr>=DH;const fv=sumDH(fb,DH);const rest=Math.max(0,DH-tr);const pct=Math.min(100,Math.round((tr/DH)*100));
+  const barC=venc?'var(--red)':tr>=13?'var(--amb)':'#6d28d9';
+  let al=null;
+  if(venc)al={bg:'var(--red-dim)',bc:'rgba(220,38,38,.5)',tc:'var(--red-t)',label:'vencido — tutela procedente'};
+  else if(tr>=13)al={bg:'var(--amb-dim)',bc:'rgba(217,119,6,.4)',tc:'var(--amb-t)',label:'próximo a vencer'};
+  return{fechaBase:fb,label:lbl,tr,venc,fv,rest,pct,barC,alerta:al,pend:false};
+}
+function plazoPet(p){
+  const activos=['sin_respuesta','trasladada','requiere_docs'];
+  if(!activos.includes(p.estado))return null;
+  if(p.estado==='trasladada'&&!p.traslado)return{pend:true,msg:'registra fecha de recepción por entidad competente'};
+  if(p.estado==='requiere_docs'&&!p.docs)return{pend:true,msg:'registra las fechas del requerimiento'};
+  if(p.estado==='requiere_docs'&&p.docs&&!p.docs.env)return calcPl(p.fecha,'radicación original (docs pendientes)');
+  const{fecha:fb,label:lbl}=fbP(p);return calcPl(fb,lbl);
+}
+function plazoTut(p){
+  if(!p.tutela||!p.tutela.fechaInterposicion)return null;
+  const fi=p.tutela.fechaInterposicion;const dc=dcT(fi);const venc=dc>=10;const fv=addD(fi,10);const rest=Math.max(0,10-dc);const pct=Math.min(100,Math.round((dc/10)*100));
+  const barC=venc?'var(--red)':dc>=8?'var(--amb)':'#5b21b6';
+  let al=null;
+  if(venc)al={bg:'var(--red-dim)',bc:'rgba(220,38,38,.5)',tc:'var(--red-t)',label:'plazo juez vencido'};
+  else if(dc>=8)al={bg:'var(--amb-dim)',bc:'rgba(217,119,6,.4)',tc:'var(--amb-t)',label:'fallo inminente'};
+  return{dc,venc,fv,rest,pct,barC,alerta:al,fi};
+}
+function di(id,ph,val){return`<input type="text" id="${id}" placeholder="${ph||''}" ${val!==undefined?'value="'+val+'"':''} style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;" />`;}
+function dd(id,val){return`<input type="date" id="${id}" ${val?'value="'+val+'"':''} style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;" />`;}
+
+function render(){
+  const todas=getP();
+  const ps=filtro==='todos'?todas:todas.filter(p=>p.estado===filtro);
+  const lista=document.getElementById('dp-list'),empty=document.getElementById('dp-empty');
+  lista.innerHTML='';
+  if(ps.length===0){empty.style.display='block';return;}
+  empty.style.display='none';
+  const sorted=[...ps].sort((a,b)=>dhT(fbP(b).fecha)-dhT(fbP(a).fecha));
+
+  sorted.forEach(p=>{
+    const pl=plazoPet(p),pt=plazoTut(p),ei=EST[p.estado]||EST.sin_respuesta,isE=editId===p.id;
+    const div=document.createElement('div');div.className='card'+(isE?' editing':'');
+    const opts=Object.entries(EST).map(([k,v])=>`<option value="${k}" ${p.estado===k?'selected':''}>${v.label}</option>`).join('');
+
+    let editBox='';
+    if(isE){editBox=`<div class="edit-box"><p style="font-size:var(--fss);color:var(--pur-t);margin:0 0 12px;">// editar radicado</p>
+    <div class="g2" style="margin-bottom:12px;"><div><label class="lbl">entidad *</label>${di('e-ent-'+p.id,'',p.entidad)}</div><div><label class="lbl">radicado</label>${di('e-rad-'+p.id,'',p.radicado||'')}</div></div>
+    <div class="g2" style="margin-bottom:12px;"><div><label class="lbl">fecha *</label>${dd('e-fec-'+p.id,p.fecha)}</div><div><label class="lbl">asunto</label>${di('e-asu-'+p.id,'',p.asunto||'')}</div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="sbtn" onclick="togEdit(${p.id})">cancelar</button><button class="pbtn" onclick="savEdit(${p.id})">guardar cambios</button></div></div>`;}
+
+    let bloques='';
+    if(p.estado==='trasladada'){
+      if(p.traslado){bloques+=`<div class="bloque b-tr"><span class="blq-t">// traslado art.21 cpaca</span><br>destino: ${p.traslado.entidad||'—'} · recepción: <strong>${fmtS(p.traslado.fechaRecepcion)}</strong><span class="lnk" onclick="clrTr(${p.id})">[editar]</span></div>`;}
+      else{bloques+=`<div class="bloque b-tr"><p class="blq-t">// traslado art.21</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--blu-t);">entidad competente</label>${di('et-'+p.id,'Ej: Supersalud')}</div><div><label class="lbl" style="color:var(--blu-t);">fecha recepción *</label>${dd('ft-'+p.id)}</div></div><div style="text-align:right;"><button class="pbtn" onclick="savTr(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+    }
+    if(p.estado==='requiere_docs'){
+      if(p.docs){const et=p.docs.env?`envío: <strong>${fmtS(p.docs.env)}</strong>`:`<em>docs pendientes</em>`;bloques+=`<div class="bloque b-dc"><span class="blq-t">// requerimiento de documentos</span><br>requerimiento: <strong>${fmtS(p.docs.req)}</strong> · ${et}<span class="lnk" onclick="clrDc(${p.id})">[editar]</span></div>`;}
+      else{bloques+=`<div class="bloque b-dc"><p class="blq-t">// requiere documentos</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.17 CPACA: plazo no se suspende. Al enviar docs el contador se reinicia.</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--amb-t);">fecha del requerimiento *</label>${dd('dr-'+p.id)}</div><div><label class="lbl" style="color:var(--amb-t);">fecha de envío</label>${dd('de-'+p.id)}</div></div><div style="text-align:right;"><button class="pbtn" onclick="savDc(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+    }
+    if(p.estado==='tutela_interpuesta'){
+      if(p.tutela&&p.tutela.fechaInterposicion){bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — dec. 2591/91</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · <strong>'+p.tutela.juzgado+'</strong>':''}${p.tutela.radicado?' · rad: '+p.tutela.radicado:''}<span class="lnk" onclick="clrTut(${p.id})">[editar]</span></div>`;}
+      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// tutela interpuesta</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.29: 10 días cal. para fallar · art.31: 3 d.h. para impugnar</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">radicado tutela</label>${di('tr-'+p.id,'Ej: 76001-40-05-006-2025-00123-00')}</div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+    }
+    if(p.estado==='tutela_resuelta'){
+      const hI=p.tutela&&p.tutela.fechaInterposicion;
+      if(hI&&p.tutela.fechaFallo){
+        const iL=p.tutela.impugna?`<br>impugnación: <strong>sí</strong>${p.tutela.fechaImpugnacion?' · radicada: <strong>'+fmtS(p.tutela.fechaImpugnacion)+'</strong> · vence ad quem: <strong>'+fmtF(addD(p.tutela.fechaImpugnacion,20))+'</strong>':' · fecha pendiente'}`:`<br>impugnación: no`;
+        bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — fallo</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · '+p.tutela.juzgado:''}<br>fallo: <strong>${fmtS(p.tutela.fechaFallo)}</strong>${p.tutela.resultado?' · <strong>'+p.tutela.resultado+'</strong>':''}${iL}<span class="lnk" onclick="clrFallo(${p.id})">[editar]</span></div>${p.tutela.impugna&&p.tutela.fechaImpugnacion?`<div class="bloque b-imp"><span class="blq-t">// 2ª instancia — art.32</span><br>impugnación: <strong>${fmtS(p.tutela.fechaImpugnacion)}</strong> · vence: <strong>${fmtF(addD(p.tutela.fechaImpugnacion,20))}</strong></div>`:''}`;}
+      else if(hI){bloques+=`<div class="bloque b-tut"><p class="blq-t">// fallo tutela</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha del fallo *</label>${dd('tf-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">resultado</label><select id="tres-${p.id}" style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;"><option value="">seleccionar...</option><option>favorable</option><option>desfavorable</option><option>improcedente</option></select></div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">¿impugnar?</label><select id="ti2-${p.id}" style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:auto;" onchange="togImp(${p.id})"><option value="no">no</option><option value="si">sí</option></select></div><div id="imp-f-${p.id}" style="display:none;margin-bottom:10px;"><label class="lbl" style="color:var(--grn-t);">fecha radicación impugnación</label>${dd('timp-'+p.id)}</div><div style="text-align:right;"><button class="pbtn" onclick="savFallo(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// sin datos de tutela</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+    }
+
+    let plazoHTML='';
+    if(pl&&!pl.pend){plazoHTML=`<div class="bw"><div class="bf" style="width:${pl.pct}%;background:${pl.barC};"></div></div><div class="stats"><div class="stat"><p class="slbl">${pl.label}</p><p class="sval">${fmtS(pl.fechaBase)}</p></div><div class="stat"><p class="slbl">días hábiles</p><p class="sval">${pl.tr} / ${DH}</p></div><div class="stat"><p class="slbl">vencimiento</p><p class="sval">${fmtF(pl.fv)}</p></div><div class="stat"><p class="slbl">${pl.venc?'tutela':'restantes'}</p><p class="sval" style="color:${pl.venc?'var(--red-t)':'var(--tx)'};">${pl.venc?'procedente':pl.rest+' d.h.'}</p></div></div>`;}
+    else if(pl&&pl.pend){plazoHTML=`<div style="font-size:var(--fss);color:var(--tx2);padding:6px 0 12px;font-style:italic;">${pl.msg}</div>`;}
+
+    let tutHTML='';
+    if(pt&&p.estado==='tutela_interpuesta'){tutHTML=`<div><p style="font-size:var(--fsxs);color:var(--tx2);margin:0 0 5px;text-transform:uppercase;letter-spacing:.5px;">plazo juez — art.29 dec.2591 (10 días cal.)</p><div class="bw"><div class="bf" style="width:${pt.pct}%;background:${pt.barC};"></div></div><div class="stats"><div class="stat"><p class="slbl">interposición</p><p class="sval">${fmtS(pt.fi)}</p></div><div class="stat"><p class="slbl">transcurridos</p><p class="sval">${pt.dc} / 10</p></div><div class="stat"><p class="slbl">vence</p><p class="sval">${fmtF(pt.fv)}</p></div><div class="stat"><p class="slbl">${pt.venc?'estado':'restantes'}</p><p class="sval" style="color:${pt.venc?'var(--red-t)':'var(--tx)'};">${pt.venc?'vencido':pt.rest+' días'}</p></div></div></div>`;}
+
+    const aB=[
+      pl&&pl.alerta?`<span class="badge" style="background:${pl.alerta.bg};border-color:${pl.alerta.bc};color:${pl.alerta.tc};">${pl.alerta.label}</span>`:'',
+      pt&&pt.alerta&&p.estado==='tutela_interpuesta'?`<span class="badge" style="background:${pt.alerta.bg};border-color:${pt.alerta.bc};color:${pt.alerta.tc};">${pt.alerta.label}</span>`:'',
+    ].filter(Boolean).join('');
+
+    div.innerHTML=`<div class="c-hdr"><div style="flex:1;min-width:0;"><p class="ent">${p.entidad}</p>${p.radicado?`<p class="meta">${p.radicado}</p>`:''}${p.asunto?`<p class="meta">${p.asunto}</p>`:''}<p class="meta">radicado: ${fmtS(p.fecha)}</p></div><div class="badges">${aB}<span class="badge" style="background:${ei.bg};border-color:${ei.bc};color:${ei.tc};">${ei.label}</span></div></div>
+    ${editBox}${bloques}${plazoHTML}${tutHTML}
+    <div class="frow"><span>estado:</span><select onchange="setE(${p.id},this.value)" style="max-width:210px;font-size:var(--fsxs);background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);padding:6px 10px;border-radius:5px;">${opts}</select><button class="sbtn${isE?' on':''}" onclick="togEdit(${p.id})">${isE?'cancelar edición':'editar'}</button><button class="sbtn" onclick="togB(${p.id})">notas</button><button class="sbtn" onclick="del(${p.id})">eliminar</button></div>
+    <div id="nb-${p.id}" style="display:none;"><textarea id="nota-${p.id}" class="nota-a" onblur="savNota(${p.id})" placeholder="// observaciones...">${p.notas||''}</textarea></div>`;
+    lista.appendChild(div);
+  });
+}
+
+initCfg();
+render();
+</script>
