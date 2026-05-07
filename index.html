@@ -64,7 +64,7 @@ input.err{border-color:var(--red)!important;}
 .lnk{cursor:pointer;text-decoration:underline;margin-left:10px;font-size:var(--fsxs);opacity:.75;}
 .nota-a{background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fss);width:100%;min-height:70px;resize:vertical;border-radius:6px;padding:10px 12px;margin-top:9px;}
 .empty{text-align:center;padding:3rem;color:var(--muted);font-size:var(--fss);}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;}
 </style>
 
 <div class="w">
@@ -75,15 +75,16 @@ input.err{border-color:var(--red)!important;}
     </div>
     <div class="hdr-btns">
       <span id="sync-status" style="display:none;font-size:var(--fsxs);"></span>
-      <button class="sbtn" onclick="toggleCfg()" id="btn-cfg" title="Configuración webhook">⚙</button>
+      <button class="sbtn" onclick="exportarJSON()" title="Exportar backup JSON">↓ backup</button>
+      <label class="sbtn" style="cursor:pointer;" title="Importar backup JSON">↑ restaurar<input type="file" id="import-file" accept=".json" style="display:none;" onchange="importarJSON(this)" /></label>
+      <button class="sbtn" onclick="toggleCfg()" id="btn-cfg">⚙</button>
       <button class="sbtn" onclick="sincronizarManual()" title="Sincronizar ahora">⇅</button>
       <button class="pbtn" onclick="showF()">+ radicado</button>
     </div>
   </div>
 
-  <!-- Panel config — oculto si ya hay URL -->
   <div id="cfg-panel" class="cfg-panel" style="display:none;">
-    <p>🔗 <strong style="color:var(--pur-t);">Webhook Google Apps Script</strong> — URL de tu implementación para sincronización automática.</p>
+    <p>🔗 <strong style="color:var(--pur-t);">Webhook Google Apps Script</strong> — URL de tu implementación.</p>
     <div class="cfg-row">
       <input class="cfg-input" type="text" id="webhook-url" placeholder="https://script.google.com/macros/s/XXXXXXX/exec" />
       <button class="sbtn" onclick="guardarWebhook()">guardar</button>
@@ -152,57 +153,76 @@ function saveP(a){localStorage.setItem(LS_KEY,JSON.stringify(a));sincronizarAuto
 function getWH(){return localStorage.getItem(WH_KEY)||'';}
 function setWH(u){localStorage.setItem(WH_KEY,u);}
 
-// ── CONFIG PANEL ───────────────────────────────────────────
+// ── EXPORTAR / IMPORTAR ────────────────────────────────────
+function exportarJSON(){
+  const ps=getP();
+  if(ps.length===0){alert('No hay datos para exportar.');return;}
+  const fecha=new Date().toISOString().split('T')[0];
+  const blob=new Blob([JSON.stringify({version:'dp_v7',exportado:fecha,peticiones:ps},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`tracker-dp-backup-${fecha}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setSyncStatus('Backup descargado ✓','ok');
+}
+
+function importarJSON(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      const ps=data.peticiones||data; // acepta array directo o formato con wrapper
+      if(!Array.isArray(ps)){alert('Formato inválido.');return;}
+      if(!confirm(`¿Restaurar ${ps.length} petición(es)? Esto reemplazará los datos actuales.`))return;
+      localStorage.setItem(LS_KEY,JSON.stringify(ps));
+      sincronizarAuto();
+      render();
+      setSyncStatus('Restaurado ✓ — '+ps.length+' peticiones','ok');
+    }catch(err){
+      alert('Error al leer el archivo: '+err.message);
+    }
+  };
+  reader.readAsText(file);
+  input.value=''; // reset para poder importar el mismo archivo dos veces
+}
+
+// ── WEBHOOK / SYNC ─────────────────────────────────────────
 function initCfg(){
   const url=getWH();
   const panel=document.getElementById('cfg-panel');
   const inp=document.getElementById('webhook-url');
-  if(url){
-    // ya configurado: ocultar panel, mostrar punto verde en botón
-    panel.style.display='none';
-    inp.value=url;
-    actualizarBtnCfg(true);
-  } else {
-    // sin configurar: mostrar panel
-    panel.style.display='block';
-    actualizarBtnCfg(false);
-  }
+  if(url){panel.style.display='none';if(inp)inp.value=url;actualizarBtnCfg(true);}
+  else{panel.style.display='block';actualizarBtnCfg(false);}
 }
 
-function actualizarBtnCfg(conectado){
+function actualizarBtnCfg(ok){
   const btn=document.getElementById('btn-cfg');
   if(!btn)return;
-  btn.innerHTML=conectado
-    ?'<span class="dot" style="background:var(--grn-t);"></span>⚙'
-    :'<span class="dot" style="background:var(--red-t);"></span>⚙';
-  btn.title=conectado?'Webhook conectado — clic para reconfigurar':'Sin webhook — clic para configurar';
+  btn.innerHTML=ok?'<span class="dot" style="background:var(--grn-t);"></span>⚙':'<span class="dot" style="background:var(--red-t);"></span>⚙';
 }
 
 function toggleCfg(){
-  const panel=document.getElementById('cfg-panel');
-  panel.style.display=panel.style.display==='none'?'block':'none';
+  const p=document.getElementById('cfg-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
 }
 
 function guardarWebhook(){
   const url=document.getElementById('webhook-url').value.trim();
-  if(!url){setWHStatus('Pega primero la URL','err');return;}
-  setWH(url);
-  setWHStatus('Guardando...','ing');
-  testWebhook();
+  if(!url){setWHStatus('Pega la URL primero','err');return;}
+  setWH(url);setWHStatus('Probando...','ing');testWebhook();
 }
 
 async function testWebhook(){
-  const url=getWH();
-  if(!url){setWHStatus('No hay URL configurada','err');return;}
+  const url=getWH();if(!url){setWHStatus('Sin URL','err');return;}
   try{
     await fetch(url,{method:'GET',mode:'no-cors'});
-    setWHStatus('Conectado ✓ — el panel se cerrará en 2s','ok');
-    actualizarBtnCfg(true);
+    setWHStatus('Conectado ✓','ok');actualizarBtnCfg(true);
     setTimeout(()=>{document.getElementById('cfg-panel').style.display='none';},2000);
-  }catch(e){
-    setWHStatus('Error — revisa la URL','err');
-    actualizarBtnCfg(false);
-  }
+  }catch(e){setWHStatus('Error — revisa la URL','err');actualizarBtnCfg(false);}
 }
 
 function setWHStatus(msg,tipo){
@@ -210,7 +230,6 @@ function setWHStatus(msg,tipo){
   if(el){el.textContent=msg;el.style.color=tipo==='ok'?'var(--grn-t)':tipo==='err'?'var(--red-t)':'var(--amb-t)';}
 }
 
-// ── SYNC STATUS (header) ───────────────────────────────────
 function setSyncStatus(msg,tipo){
   const el=document.getElementById('sync-status');
   if(!el)return;
@@ -224,13 +243,12 @@ async function sincronizarAuto(){
   const url=getWH();if(!url)return;
   try{
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({peticiones:getP()})});
-    setSyncStatus('⇅ sync '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),'ok');
+    setSyncStatus('⇅ '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),'ok');
   }catch(e){setSyncStatus('sin conexión','err');}
 }
 
 async function sincronizarManual(){
-  const url=getWH();
-  if(!url){toggleCfg();return;}
+  const url=getWH();if(!url){toggleCfg();return;}
   setSyncStatus('sincronizando...','ing');
   await sincronizarAuto();
 }
@@ -338,7 +356,7 @@ function render(){
     }
     if(p.estado==='tutela_interpuesta'){
       if(p.tutela&&p.tutela.fechaInterposicion){bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — dec. 2591/91</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · <strong>'+p.tutela.juzgado+'</strong>':''}${p.tutela.radicado?' · rad: '+p.tutela.radicado:''}<span class="lnk" onclick="clrTut(${p.id})">[editar]</span></div>`;}
-      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// tutela interpuesta</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.29: 10 días cal. para fallar · art.31: 3 d.h. para impugnar</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">radicado tutela</label>${di('tr-'+p.id,'Ej: 76001-40-05-006-2025-00123-00')}</div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// tutela interpuesta</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.29: 10 días cal. · art.31: 3 d.h. para impugnar</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">radicado tutela</label>${di('tr-'+p.id,'Ej: 76001-40-05-006-2025-00123-00')}</div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
     }
     if(p.estado==='tutela_resuelta'){
       const hI=p.tutela&&p.tutela.fechaInterposicion;
@@ -363,7 +381,7 @@ function render(){
 
     div.innerHTML=`<div class="c-hdr"><div style="flex:1;min-width:0;"><p class="ent">${p.entidad}</p>${p.radicado?`<p class="meta">${p.radicado}</p>`:''}${p.asunto?`<p class="meta">${p.asunto}</p>`:''}<p class="meta">radicado: ${fmtS(p.fecha)}</p></div><div class="badges">${aB}<span class="badge" style="background:${ei.bg};border-color:${ei.bc};color:${ei.tc};">${ei.label}</span></div></div>
     ${editBox}${bloques}${plazoHTML}${tutHTML}
-    <div class="frow"><span>estado:</span><select onchange="setE(${p.id},this.value)" style="max-width:210px;font-size:var(--fsxs);background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);padding:6px 10px;border-radius:5px;">${opts}</select><button class="sbtn${isE?' on':''}" onclick="togEdit(${p.id})">${isE?'cancelar edición':'editar'}</button><button class="sbtn" onclick="togB(${p.id})">notas</button><button class="sbtn" onclick="del(${p.id})">eliminar</button></div>
+    <div class="frow"><span>estado:</span><select onchange="setE(${p.id},this.value)" style="max-width:210px;font-size:var(--fsxs);background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);padding:6px 10px;border-radius:5px;">${opts}</select><button class="sbtn${isE?' on':''}" onclick="togEdit(${p.id})">${isE?'cancelar':'editar'}</button><button class="sbtn" onclick="togB(${p.id})">notas</button><button class="sbtn" onclick="del(${p.id})">eliminar</button></div>
     <div id="nb-${p.id}" style="display:none;"><textarea id="nota-${p.id}" class="nota-a" onblur="savNota(${p.id})" placeholder="// observaciones...">${p.notas||''}</textarea></div>`;
     lista.appendChild(div);
   });
