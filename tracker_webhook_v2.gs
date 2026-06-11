@@ -89,9 +89,9 @@ function doGet(e) {
   const props = PropertiesService.getScriptProperties();
   const ultima = props.getProperty('ultima_sync') || 'nunca';
   const raw = props.getProperty('peticiones');
-  const n = raw ? JSON.parse(raw).length : 0;
+  const peticiones = raw ? JSON.parse(raw) : [];
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, peticiones: n, ultima_sync: ultima }))
+    .createTextOutput(JSON.stringify({ ok: true, peticiones: peticiones, n: peticiones.length, ultima_sync: ultima }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -114,7 +114,7 @@ function notificarVencimientos() {
     const estado   = (p.estado || "").toLowerCase();
     if (!entidad || !p.fecha) return;
 
-    // 1. Derecho de petición — 15 días hábiles
+    // 1. Derecho de petición — 15 días hábiles (solo registros tipo DP)
     const estadosVivos = ["sin_respuesta","trasladada","requiere_docs"];
     if (estadosVivos.includes(estado)) {
       let fechaBase = p.fecha;
@@ -141,31 +141,31 @@ function notificarVencimientos() {
       }
     }
 
-    // 2. Tutela — 10 días calendario
+    // 2. Tutela — 10 días hábiles (aplica tanto a DP+tutela como tutela independiente)
     if (estado === "tutela_interpuesta" && p.tutela && p.tutela.fechaInterposicion) {
-      const dc = dcTranscurridos(p.tutela.fechaInterposicion);
-      const fV = addDias(p.tutela.fechaInterposicion, 10);
+      const dh = dhTranscurridos(p.tutela.fechaInterposicion);
+      const fV = sumarDH(p.tutela.fechaInterposicion, 10);
       const diasHasta = Math.round((fV - hoy) / 86400000);
-      if (dc >= 10) {
+      if (dh >= 10) {
         alertas.push({ nivel: "VENCIDO", entidad, radicado, asunto,
-          msg: `Plazo juez tutela vencido (art.29 Dec.2591). ${dc} días desde ${fmt(new Date(p.tutela.fechaInterposicion))}. Venció: ${fmt(fV)}.` });
+          msg: `Plazo juez tutela vencido (art.29 Dec.2591). ${dh} d.h. desde ${fmt(new Date(p.tutela.fechaInterposicion))}. Venció: ${fmt(fV)}.` });
       } else if (diasHasta <= DIAS_AVISO) {
         alertas.push({ nivel: "POR VENCER", entidad, radicado, asunto,
-          msg: `Fallo tutela vence en ${Math.max(0, 10 - dc)} día(s) cal. — ${fmt(fV)} (art.29 Dec.2591).` });
+          msg: `Fallo tutela vence en ${Math.max(0, 10 - dh)} día(s) háb. — ${fmt(fV)} (art.29 Dec.2591).` });
       }
     }
 
-    // 3. Impugnación — 20 días calendario
+    // 3. Impugnación — 20 días hábiles
     if (p.tutela && p.tutela.fechaImpugnacion) {
-      const dc = dcTranscurridos(p.tutela.fechaImpugnacion);
-      const fV = addDias(p.tutela.fechaImpugnacion, 20);
+      const dh = dhTranscurridos(p.tutela.fechaImpugnacion);
+      const fV = sumarDH(p.tutela.fechaImpugnacion, 20);
       const diasHasta = Math.round((fV - hoy) / 86400000);
-      if (dc >= 20) {
+      if (dh >= 20) {
         alertas.push({ nivel: "VENCIDO", entidad, radicado, asunto,
-          msg: `Plazo juez ad quem vencido (art.32 Dec.2591). ${dc} días desde impugnación del ${fmt(new Date(p.tutela.fechaImpugnacion))}. Venció: ${fmt(fV)}.` });
+          msg: `Plazo juez ad quem vencido (art.32 Dec.2591). ${dh} d.h. desde impugnación del ${fmt(new Date(p.tutela.fechaImpugnacion))}. Venció: ${fmt(fV)}.` });
       } else if (diasHasta <= DIAS_AVISO) {
         alertas.push({ nivel: "POR VENCER", entidad, radicado, asunto,
-          msg: `Fallo 2ª instancia vence en ${Math.max(0, 20 - dc)} día(s) — ${fmt(fV)} (art.32 Dec.2591).` });
+          msg: `Fallo 2ª instancia vence en ${Math.max(0, 20 - dh)} día(s) háb. — ${fmt(fV)} (art.32 Dec.2591).` });
       }
     }
   });
@@ -174,7 +174,7 @@ function notificarVencimientos() {
 
   const hoyStr = fmt(hoy);
   let html = `<div style="font-family:monospace;background:#0a0a0f;color:#e2e2f0;padding:24px;border-radius:8px;max-width:680px;">`;
-  html += `<h2 style="color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin:0 0 4px;">// tracker derechos de petición</h2>`;
+  html += `<h2 style="color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin:0 0 4px;">// tracker derechos de petición · tutelas</h2>`;
   html += `<p style="color:#7878a8;font-size:13px;margin:0 0 20px;">Informe automático · ${hoyStr}</p>`;
   html += `<p style="margin:0 0 16px;"><strong style="color:#f87171;">${alertas.length}</strong> alerta(s) requieren atención:</p>`;
 

@@ -94,14 +94,28 @@ input.err{border-color:var(--red)!important;}
   </div>
 
   <div id="dp-form" style="display:none;" class="form-box">
-    <p style="font-size:var(--fss);color:var(--pur-t);margin:0 0 14px;">// nuevo derecho de petición</p>
+    <p id="form-titulo" style="font-size:var(--fss);color:var(--pur-t);margin:0 0 14px;">// nuevo derecho de petición</p>
+    <div style="margin-bottom:12px;">
+      <label class="lbl">tipo *</label>
+      <div style="display:flex;gap:8px;">
+        <button class="sbtn on" id="tipo-btn-dp" onclick="setTipo('dp')">derecho de petición</button>
+        <button class="sbtn" id="tipo-btn-tutela" onclick="setTipo('tutela')">tutela independiente</button>
+      </div>
+    </div>
+    <input type="hidden" id="i-tipo" value="dp" />
     <div class="g2" style="margin-bottom:12px;">
-      <div><label class="lbl">entidad radicada *</label><input type="text" id="i-ent" placeholder="Ej: Ministerio del Trabajo" /></div>
+      <div><label class="lbl" id="lbl-ent">entidad radicada *</label><input type="text" id="i-ent" placeholder="Ej: Ministerio del Trabajo" /></div>
       <div><label class="lbl">no. radicado</label><input type="text" id="i-rad" placeholder="Ej: 2025-12345" /></div>
     </div>
     <div class="g2" style="margin-bottom:12px;">
-      <div><label class="lbl">fecha de radicación *</label><input type="date" id="i-fec" /></div>
+      <div><label class="lbl" id="lbl-fec">fecha de radicación *</label><input type="date" id="i-fec" /></div>
       <div><label class="lbl">asunto</label><input type="text" id="i-asu" placeholder="Ej: Lista de elegibles" /></div>
+    </div>
+    <div id="tutela-extra" style="display:none;margin-bottom:12px;">
+      <div class="g2">
+        <div><label class="lbl">juzgado</label><input type="text" id="i-juz" placeholder="Ej: Juzgado 6 Penal Municipal" /></div>
+        <div><label class="lbl">radicado tutela</label><input type="text" id="i-trad" placeholder="Ej: 76001-40-05-006-2026-00..." /></div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="sbtn" onclick="hideF()">cancelar</button>
@@ -148,10 +162,13 @@ function mErr(id,bad){const el=document.getElementById(id);if(el)el.classList[ba
 
 const LS_KEY='dp_v7';
 const WH_KEY='dp_webhook_url';
+const SYNC_TS_KEY='dp_last_sync_ts';
 function getP(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch(e){return[];}}
 function saveP(a){localStorage.setItem(LS_KEY,JSON.stringify(a));sincronizarAuto();}
 function getWH(){return localStorage.getItem(WH_KEY)||'';}
 function setWH(u){localStorage.setItem(WH_KEY,u);}
+function getSyncTs(){return localStorage.getItem(SYNC_TS_KEY)||'';}
+function setSyncTs(ts){localStorage.setItem(SYNC_TS_KEY,ts);}
 
 // ── EXPORTAR / IMPORTAR ────────────────────────────────────
 function exportarJSON(){
@@ -175,7 +192,7 @@ function importarJSON(input){
   reader.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      const ps=data.peticiones||data; // acepta array directo o formato con wrapper
+      const ps=data.peticiones||data;
       if(!Array.isArray(ps)){alert('Formato inválido.');return;}
       if(!confirm(`¿Restaurar ${ps.length} petición(es)? Esto reemplazará los datos actuales.`))return;
       localStorage.setItem(LS_KEY,JSON.stringify(ps));
@@ -187,7 +204,7 @@ function importarJSON(input){
     }
   };
   reader.readAsText(file);
-  input.value=''; // reset para poder importar el mismo archivo dos veces
+  input.value='';
 }
 
 // ── WEBHOOK / SYNC ─────────────────────────────────────────
@@ -195,7 +212,7 @@ function initCfg(){
   const url=getWH();
   const panel=document.getElementById('cfg-panel');
   const inp=document.getElementById('webhook-url');
-  if(url){panel.style.display='none';if(inp)inp.value=url;actualizarBtnCfg(true);}
+  if(url){panel.style.display='none';if(inp)inp.value=url;actualizarBtnCfg(true);cargarDesdeServidor();}
   else{panel.style.display='block';actualizarBtnCfg(false);}
 }
 
@@ -241,10 +258,30 @@ function setSyncStatus(msg,tipo){
 
 async function sincronizarAuto(){
   const url=getWH();if(!url)return;
+  const ts=new Date().toISOString();
   try{
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({peticiones:getP()})});
+    setSyncTs(ts);
     setSyncStatus('⇅ '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),'ok');
   }catch(e){setSyncStatus('sin conexión','err');}
+}
+
+async function cargarDesdeServidor(){
+  const url=getWH();if(!url)return;
+  try{
+    const r=await fetch(url,{method:'GET'});
+    if(!r.ok)return;
+    const data=await r.json();
+    if(!data.ok||!Array.isArray(data.peticiones)||data.peticiones.length===0)return;
+    const localTs=getSyncTs();
+    const servidorTs=data.ultima_sync||'';
+    if(servidorTs&&servidorTs!=='nunca'&&(!localTs||new Date(servidorTs)>new Date(localTs))){
+      localStorage.setItem(LS_KEY,JSON.stringify(data.peticiones));
+      setSyncTs(servidorTs);
+      render();
+      setSyncStatus('↓ sincronizado desde servidor','ok');
+    }
+  }catch(e){}
 }
 
 async function sincronizarManual(){
@@ -254,14 +291,36 @@ async function sincronizarManual(){
 }
 
 // ── CRUD ───────────────────────────────────────────────────
-function showF(){document.getElementById('dp-form').style.display='block';document.getElementById('i-fec').valueAsDate=new Date();}
-function hideF(){document.getElementById('dp-form').style.display='none';['i-ent','i-rad','i-asu','i-fec'].forEach(i=>{const el=document.getElementById(i);if(el){el.value='';el.classList.remove('err');}});}
+function setTipo(t){
+  document.getElementById('i-tipo').value=t;
+  document.getElementById('tipo-btn-dp').classList.toggle('on',t==='dp');
+  document.getElementById('tipo-btn-tutela').classList.toggle('on',t==='tutela');
+  document.getElementById('tutela-extra').style.display=t==='tutela'?'block':'none';
+  const lbl=document.getElementById('lbl-fec');if(lbl)lbl.textContent=t==='tutela'?'fecha interposición *':'fecha de radicación *';
+  const lblE=document.getElementById('lbl-ent');if(lblE)lblE.textContent=t==='tutela'?'entidad demandada *':'entidad radicada *';
+  const titulo=document.getElementById('form-titulo');if(titulo)titulo.textContent=t==='tutela'?'// nueva tutela':'// nuevo derecho de petición';
+}
+function showF(){document.getElementById('dp-form').style.display='block';document.getElementById('i-fec').valueAsDate=new Date();setTipo('dp');}
+function hideF(){document.getElementById('dp-form').style.display='none';['i-ent','i-rad','i-asu','i-fec','i-juz','i-trad'].forEach(i=>{const el=document.getElementById(i);if(el){el.value='';el.classList.remove('err');}});setTipo('dp');}
 function addP(){
   const e=document.getElementById('i-ent'),f=document.getElementById('i-fec');
   let ok=true;[['i-ent',!e.value.trim()],['i-fec',!f.value]].forEach(([id,bad])=>{mErr(id,bad);if(bad)ok=false;});
   if(!ok)return;
+  const tipo=gV('i-tipo')||'dp';
   const ps=getP();
-  ps.push({id:Date.now(),entidad:e.value.trim(),radicado:gV('i-rad'),asunto:gV('i-asu'),fecha:f.value,estado:'sin_respuesta',traslado:null,docs:null,tutela:null,notas:''});
+  ps.push({
+    id:Date.now(),
+    tipo:tipo,
+    entidad:e.value.trim(),
+    radicado:gV('i-rad'),
+    asunto:gV('i-asu'),
+    fecha:f.value,
+    estado:tipo==='tutela'?'tutela_interpuesta':'sin_respuesta',
+    traslado:null,
+    docs:null,
+    tutela:tipo==='tutela'?{fechaInterposicion:f.value,juzgado:gV('i-juz'),radicado:gV('i-trad')}:null,
+    notas:''
+  });
   saveP(ps);hideF();render();
 }
 function del(id){if(!confirm('¿Eliminar este radicado?'))return;saveP(getP().filter(p=>p.id!==id));if(editId===id)editId=null;render();}
@@ -274,7 +333,16 @@ function savEdit(id){
   editId=null;render();
 }
 function setE(id,nv){
-  saveP(getP().map(p=>{if(p.id!==id)return p;const u={...p,estado:nv};if(nv!=='trasladada')u.traslado=null;if(nv!=='requiere_docs')u.docs=null;if(nv!=='tutela_interpuesta'&&nv!=='tutela_resuelta')u.tutela=null;return u;}));render();
+  saveP(getP().map(p=>{
+    if(p.id!==id)return p;
+    const u={...p,estado:nv};
+    if(p.tipo!=='tutela'){
+      if(nv!=='trasladada')u.traslado=null;
+      if(nv!=='requiere_docs')u.docs=null;
+      if(nv!=='tutela_interpuesta'&&nv!=='tutela_resuelta')u.tutela=null;
+    }
+    return u;
+  }));render();
 }
 function savTr(id){const ft=gV('ft-'+id);mErr('ft-'+id,!ft);if(!ft)return;saveP(getP().map(p=>p.id===id?{...p,traslado:{fechaRecepcion:ft,entidad:gV('et-'+id)}}:p));render();}
 function clrTr(id){saveP(getP().map(p=>p.id===id?{...p,traslado:null}:p));render();}
@@ -315,12 +383,12 @@ function plazoPet(p){
 }
 function plazoTut(p){
   if(!p.tutela||!p.tutela.fechaInterposicion)return null;
-  const fi=p.tutela.fechaInterposicion;const dc=dcT(fi);const venc=dc>=10;const fv=addD(fi,10);const rest=Math.max(0,10-dc);const pct=Math.min(100,Math.round((dc/10)*100));
-  const barC=venc?'var(--red)':dc>=8?'var(--amb)':'#5b21b6';
+  const fi=p.tutela.fechaInterposicion;const dh=dhT(fi);const venc=dh>=10;const fv=sumDH(fi,10);const rest=Math.max(0,10-dh);const pct=Math.min(100,Math.round((dh/10)*100));
+  const barC=venc?'var(--red)':dh>=8?'var(--amb)':'#5b21b6';
   let al=null;
   if(venc)al={bg:'var(--red-dim)',bc:'rgba(220,38,38,.5)',tc:'var(--red-t)',label:'plazo juez vencido'};
-  else if(dc>=8)al={bg:'var(--amb-dim)',bc:'rgba(217,119,6,.4)',tc:'var(--amb-t)',label:'fallo inminente'};
-  return{dc,venc,fv,rest,pct,barC,alerta:al,fi};
+  else if(dh>=8)al={bg:'var(--amb-dim)',bc:'rgba(217,119,6,.4)',tc:'var(--amb-t)',label:'fallo inminente'};
+  return{dh,venc,fv,rest,pct,barC,alerta:al,fi};
 }
 function di(id,ph,val){return`<input type="text" id="${id}" placeholder="${ph||''}" ${val!==undefined?'value="'+val+'"':''} style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;" />`;}
 function dd(id,val){return`<input type="date" id="${id}" ${val?'value="'+val+'"':''} style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;" />`;}
@@ -335,9 +403,16 @@ function render(){
   const sorted=[...ps].sort((a,b)=>dhT(fbP(b).fecha)-dhT(fbP(a).fecha));
 
   sorted.forEach(p=>{
-    const pl=plazoPet(p),pt=plazoTut(p),ei=EST[p.estado]||EST.sin_respuesta,isE=editId===p.id;
+    const esTutInd=p.tipo==='tutela';
+    const pl=esTutInd?null:plazoPet(p);
+    const pt=plazoTut(p);
+    const ei=EST[p.estado]||EST.sin_respuesta;
+    const isE=editId===p.id;
     const div=document.createElement('div');div.className='card'+(isE?' editing':'');
-    const opts=Object.entries(EST).map(([k,v])=>`<option value="${k}" ${p.estado===k?'selected':''}>${v.label}</option>`).join('');
+    const estOpts=esTutInd
+      ?[['tutela_interpuesta',EST.tutela_interpuesta],['tutela_resuelta',EST.tutela_resuelta]]
+      :Object.entries(EST);
+    const opts=estOpts.map(([k,v])=>`<option value="${k}" ${p.estado===k?'selected':''}>${v.label}</option>`).join('');
 
     let editBox='';
     if(isE){editBox=`<div class="edit-box"><p style="font-size:var(--fss);color:var(--pur-t);margin:0 0 12px;">// editar radicado</p>
@@ -356,13 +431,13 @@ function render(){
     }
     if(p.estado==='tutela_interpuesta'){
       if(p.tutela&&p.tutela.fechaInterposicion){bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — dec. 2591/91</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · <strong>'+p.tutela.juzgado+'</strong>':''}${p.tutela.radicado?' · rad: '+p.tutela.radicado:''}<span class="lnk" onclick="clrTut(${p.id})">[editar]</span></div>`;}
-      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// tutela interpuesta</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.29: 10 días cal. · art.31: 3 d.h. para impugnar</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">radicado tutela</label>${di('tr-'+p.id,'Ej: 76001-40-05-006-2025-00123-00')}</div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
+      else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// tutela interpuesta</p><p style="font-size:var(--fsxs);margin:0 0 10px;opacity:.85;">art.29: 10 días háb. · art.31: 3 d.h. para impugnar</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">radicado tutela</label>${di('tr-'+p.id,'Ej: 76001-40-05-006-2025-00123-00')}</div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
     }
     if(p.estado==='tutela_resuelta'){
       const hI=p.tutela&&p.tutela.fechaInterposicion;
       if(hI&&p.tutela.fechaFallo){
-        const iL=p.tutela.impugna?`<br>impugnación: <strong>sí</strong>${p.tutela.fechaImpugnacion?' · radicada: <strong>'+fmtS(p.tutela.fechaImpugnacion)+'</strong> · vence ad quem: <strong>'+fmtF(addD(p.tutela.fechaImpugnacion,20))+'</strong>':' · fecha pendiente'}`:`<br>impugnación: no`;
-        bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — fallo</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · '+p.tutela.juzgado:''}<br>fallo: <strong>${fmtS(p.tutela.fechaFallo)}</strong>${p.tutela.resultado?' · <strong>'+p.tutela.resultado+'</strong>':''}${iL}<span class="lnk" onclick="clrFallo(${p.id})">[editar]</span></div>${p.tutela.impugna&&p.tutela.fechaImpugnacion?`<div class="bloque b-imp"><span class="blq-t">// 2ª instancia — art.32</span><br>impugnación: <strong>${fmtS(p.tutela.fechaImpugnacion)}</strong> · vence: <strong>${fmtF(addD(p.tutela.fechaImpugnacion,20))}</strong></div>`:''}`;}
+        const iL=p.tutela.impugna?`<br>impugnación: <strong>sí</strong>${p.tutela.fechaImpugnacion?' · radicada: <strong>'+fmtS(p.tutela.fechaImpugnacion)+'</strong> · vence ad quem: <strong>'+fmtF(sumDH(p.tutela.fechaImpugnacion,20))+'</strong>':' · fecha pendiente'}`:`<br>impugnación: no`;
+        bloques+=`<div class="bloque b-tut"><span class="blq-t">// tutela — fallo</span><br>interpuesta: <strong>${fmtS(p.tutela.fechaInterposicion)}</strong>${p.tutela.juzgado?' · '+p.tutela.juzgado:''}<br>fallo: <strong>${fmtS(p.tutela.fechaFallo)}</strong>${p.tutela.resultado?' · <strong>'+p.tutela.resultado+'</strong>':''}${iL}<span class="lnk" onclick="clrFallo(${p.id})">[editar]</span></div>${p.tutela.impugna&&p.tutela.fechaImpugnacion?`<div class="bloque b-imp"><span class="blq-t">// 2ª instancia — art.32</span><br>impugnación: <strong>${fmtS(p.tutela.fechaImpugnacion)}</strong> · vence: <strong>${fmtF(sumDH(p.tutela.fechaImpugnacion,20))}</strong></div>`:''}`;}
       else if(hI){bloques+=`<div class="bloque b-tut"><p class="blq-t">// fallo tutela</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha del fallo *</label>${dd('tf-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">resultado</label><select id="tres-${p.id}" style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:100%;"><option value="">seleccionar...</option><option>favorable</option><option>desfavorable</option><option>improcedente</option></select></div></div><div style="margin-bottom:10px;"><label class="lbl" style="color:var(--pur-t);">¿impugnar?</label><select id="ti2-${p.id}" style="background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);font-size:var(--fs);padding:10px 12px;border-radius:6px;width:auto;" onchange="togImp(${p.id})"><option value="no">no</option><option value="si">sí</option></select></div><div id="imp-f-${p.id}" style="display:none;margin-bottom:10px;"><label class="lbl" style="color:var(--grn-t);">fecha radicación impugnación</label>${dd('timp-'+p.id)}</div><div style="text-align:right;"><button class="pbtn" onclick="savFallo(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
       else{bloques+=`<div class="bloque b-tut"><p class="blq-t">// sin datos de tutela</p><div class="g2" style="gap:10px;margin-bottom:10px;"><div><label class="lbl" style="color:var(--pur-t);">fecha interposición *</label>${dd('ti-'+p.id)}</div><div><label class="lbl" style="color:var(--pur-t);">juzgado</label>${di('tj-'+p.id,'Ej: Juzgado 6 Penal Municipal')}</div></div><div style="text-align:right;"><button class="pbtn" onclick="savTut(${p.id})" style="font-size:14px;padding:7px 16px;">guardar</button></div></div>`;}
     }
@@ -372,14 +447,16 @@ function render(){
     else if(pl&&pl.pend){plazoHTML=`<div style="font-size:var(--fss);color:var(--tx2);padding:6px 0 12px;font-style:italic;">${pl.msg}</div>`;}
 
     let tutHTML='';
-    if(pt&&p.estado==='tutela_interpuesta'){tutHTML=`<div><p style="font-size:var(--fsxs);color:var(--tx2);margin:0 0 5px;text-transform:uppercase;letter-spacing:.5px;">plazo juez — art.29 dec.2591 (10 días cal.)</p><div class="bw"><div class="bf" style="width:${pt.pct}%;background:${pt.barC};"></div></div><div class="stats"><div class="stat"><p class="slbl">interposición</p><p class="sval">${fmtS(pt.fi)}</p></div><div class="stat"><p class="slbl">transcurridos</p><p class="sval">${pt.dc} / 10</p></div><div class="stat"><p class="slbl">vence</p><p class="sval">${fmtF(pt.fv)}</p></div><div class="stat"><p class="slbl">${pt.venc?'estado':'restantes'}</p><p class="sval" style="color:${pt.venc?'var(--red-t)':'var(--tx)'};">${pt.venc?'vencido':pt.rest+' días'}</p></div></div></div>`;}
+    if(pt&&p.estado==='tutela_interpuesta'){tutHTML=`<div><p style="font-size:var(--fsxs);color:var(--tx2);margin:0 0 5px;text-transform:uppercase;letter-spacing:.5px;">plazo juez — art.29 dec.2591 (10 días háb.)</p><div class="bw"><div class="bf" style="width:${pt.pct}%;background:${pt.barC};"></div></div><div class="stats"><div class="stat"><p class="slbl">interposición</p><p class="sval">${fmtS(pt.fi)}</p></div><div class="stat"><p class="slbl">d.h. transcurridos</p><p class="sval">${pt.dh} / 10</p></div><div class="stat"><p class="slbl">vencimiento</p><p class="sval">${fmtF(pt.fv)}</p></div><div class="stat"><p class="slbl">${pt.venc?'estado':'restantes'}</p><p class="sval" style="color:${pt.venc?'var(--red-t)':'var(--tx)'};">${pt.venc?'vencido':pt.rest+' d.h.'}</p></div></div></div>`;}
 
+    const tipoBadge=esTutInd?`<span class="badge" style="background:var(--pur-dim);border-color:var(--bord2);color:var(--pur-t);font-size:11px;">tutela ind.</span>`:'';
     const aB=[
       pl&&pl.alerta?`<span class="badge" style="background:${pl.alerta.bg};border-color:${pl.alerta.bc};color:${pl.alerta.tc};">${pl.alerta.label}</span>`:'',
       pt&&pt.alerta&&p.estado==='tutela_interpuesta'?`<span class="badge" style="background:${pt.alerta.bg};border-color:${pt.alerta.bc};color:${pt.alerta.tc};">${pt.alerta.label}</span>`:'',
     ].filter(Boolean).join('');
 
-    div.innerHTML=`<div class="c-hdr"><div style="flex:1;min-width:0;"><p class="ent">${p.entidad}</p>${p.radicado?`<p class="meta">${p.radicado}</p>`:''}${p.asunto?`<p class="meta">${p.asunto}</p>`:''}<p class="meta">radicado: ${fmtS(p.fecha)}</p></div><div class="badges">${aB}<span class="badge" style="background:${ei.bg};border-color:${ei.bc};color:${ei.tc};">${ei.label}</span></div></div>
+    const labelFecha=esTutInd?'interpuesta':'radicado';
+    div.innerHTML=`<div class="c-hdr"><div style="flex:1;min-width:0;"><p class="ent">${p.entidad}</p>${p.radicado?`<p class="meta">${p.radicado}</p>`:''}${p.asunto?`<p class="meta">${p.asunto}</p>`:''}<p class="meta">${labelFecha}: ${fmtS(p.fecha)}</p></div><div class="badges">${tipoBadge}${aB}<span class="badge" style="background:${ei.bg};border-color:${ei.bc};color:${ei.tc};">${ei.label}</span></div></div>
     ${editBox}${bloques}${plazoHTML}${tutHTML}
     <div class="frow"><span>estado:</span><select onchange="setE(${p.id},this.value)" style="max-width:210px;font-size:var(--fsxs);background:#0d0d18;border:.5px solid #2a2a4a;color:var(--tx);padding:6px 10px;border-radius:5px;">${opts}</select><button class="sbtn${isE?' on':''}" onclick="togEdit(${p.id})">${isE?'cancelar':'editar'}</button><button class="sbtn" onclick="togB(${p.id})">notas</button><button class="sbtn" onclick="del(${p.id})">eliminar</button></div>
     <div id="nb-${p.id}" style="display:none;"><textarea id="nota-${p.id}" class="nota-a" onblur="savNota(${p.id})" placeholder="// observaciones...">${p.notas||''}</textarea></div>`;
